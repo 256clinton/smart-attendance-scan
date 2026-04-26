@@ -61,24 +61,55 @@ function CourseDetail() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [{ data: c }, { data: s }, { data: a }, { data: e }] = await Promise.all([
+    const [{ data: c }, { data: s }, { data: e }] = await Promise.all([
       supabase.from("courses").select("*").eq("id", courseId).maybeSingle(),
       supabase.from("sessions").select("*").eq("course_id", courseId).order("starts_at", { ascending: false }),
-      supabase
-        .from("attendance")
-        .select("id, scanned_at, student_id, session_id, profiles(full_name, university_id)")
-        .order("scanned_at", { ascending: false }),
-      supabase
-        .from("enrollments")
-        .select("id, student_id, profiles(full_name, university_id)")
-        .eq("course_id", courseId),
+      supabase.from("enrollments").select("id, student_id").eq("course_id", courseId),
     ]);
     setCourse(c ?? null);
-    setSessions(s ?? []);
-    // Filter attendance to only this course's sessions
-    const sessionIds = new Set((s ?? []).map((x) => x.id));
-    setAttendance((a ?? []).filter((row) => sessionIds.has(row.session_id)) as AttendanceRow[]);
-    setEnrollments((e ?? []) as EnrollmentRow[]);
+    const sessionsData = (s ?? []) as SessionRow[];
+    setSessions(sessionsData);
+
+    const sessionIds = sessionsData.map((x) => x.id);
+    const { data: a } = sessionIds.length
+      ? await supabase
+          .from("attendance")
+          .select("id, scanned_at, student_id, session_id")
+          .in("session_id", sessionIds)
+          .order("scanned_at", { ascending: false })
+      : { data: [] as { id: string; scanned_at: string; student_id: string; session_id: string }[] };
+
+    const enrollmentsData = (e ?? []) as { id: string; student_id: string }[];
+    const studentIds = Array.from(
+      new Set([...(a ?? []).map((r) => r.student_id), ...enrollmentsData.map((r) => r.student_id)])
+    );
+    const { data: profs } = studentIds.length
+      ? await supabase.from("profiles").select("id, full_name, university_id").in("id", studentIds)
+      : { data: [] as { id: string; full_name: string; university_id: string | null }[] };
+    const profMap = new Map((profs ?? []).map((p) => [p.id, p]));
+
+    setAttendance(
+      (a ?? []).map((row) => ({
+        ...row,
+        profiles: profMap.get(row.student_id)
+          ? {
+              full_name: profMap.get(row.student_id)!.full_name,
+              university_id: profMap.get(row.student_id)!.university_id,
+            }
+          : null,
+      }))
+    );
+    setEnrollments(
+      enrollmentsData.map((row) => ({
+        ...row,
+        profiles: profMap.get(row.student_id)
+          ? {
+              full_name: profMap.get(row.student_id)!.full_name,
+              university_id: profMap.get(row.student_id)!.university_id,
+            }
+          : null,
+      }))
+    );
     setLoading(false);
   };
 
