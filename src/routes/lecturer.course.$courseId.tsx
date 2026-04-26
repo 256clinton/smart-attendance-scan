@@ -50,7 +50,6 @@ function CourseDetail() {
   const [topic, setTopic] = useState("");
   const [duration, setDuration] = useState(15);
   const [activeQr, setActiveQr] = useState<{ session: SessionRow; dataUrl: string } | null>(null);
-  const [studentEmail, setStudentEmail] = useState("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -139,16 +138,6 @@ function CourseDetail() {
     const url = `${window.location.origin}/student/scan?token=${s.scan_token}`;
     const dataUrl = await QRCode.toDataURL(url, { width: 480, margin: 2, color: { dark: "#1b1340", light: "#ffffff" } });
     setActiveQr({ session: s, dataUrl });
-  };
-
-  const enrollStudent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const email = studentEmail.trim().toLowerCase();
-    if (!email) return;
-    // Look up student by email via profiles join is not direct — search profiles via auth not allowed. Use email search through profiles is infeasible without a server function.
-    // Workaround: students self-enroll via course code.
-    toast.info("Share the course code with students — they can self-enroll from their dashboard.");
-    setStudentEmail("");
   };
 
   const attendanceBySession = useMemo(() => {
