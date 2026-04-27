@@ -62,11 +62,11 @@ function StudentDashboard() {
     if (!user) return;
     const trimmed = z.string().trim().min(2).max(20).safeParse(code);
     if (!trimmed.success) { toast.error("Invalid code"); return; }
-    const { data: course } = await supabase
-      .from("courses").select("id").eq("code", trimmed.data).maybeSingle();
-    if (!course) { toast.error("Course not found"); return; }
+    const { data: courseId, error: lookupErr } = await supabase
+      .rpc("find_course_by_code", { _code: trimmed.data });
+    if (lookupErr || !courseId) { toast.error("Course not found"); return; }
     const { error } = await supabase.from("enrollments").insert({
-      course_id: course.id,
+      course_id: courseId as string,
       student_id: user.id,
     });
     if (error) {
