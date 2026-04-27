@@ -190,6 +190,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      find_course_by_code: { Args: { _code: string }; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
